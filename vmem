@@ -1,0 +1,80 @@
+#!/bin/bash
+# Vestige Memory Helper - vmem
+# Usage: vmem [search|save|stats|health] [content]
+
+VESTIGE_MCP=~/bin/vestige-mcp
+VESTIGE=~/bin/vestige
+
+# MCP requires initialization before tool calls
+mcp_call() {
+  local TOOL="$1"
+  local ARGS="$2"
+  (
+    echo '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"vmem","version":"1.0"}}}'
+    sleep 0.3
+    echo "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"$TOOL\",\"arguments\":$ARGS}}"
+  ) | $VESTIGE_MCP 2>/dev/null | grep '"id":1' | jq -r '.result.content[0].text // .error.message // "No response"'
+}
+
+ACTION=$1
+shift
+
+case $ACTION in
+  search|s)
+    QUERY="$*"
+    mcp_call "search" "{\"query\":\"$QUERY\"}"
+    ;;
+  save|add)
+    CONTENT="$*"
+    # Escape quotes in content
+    CONTENT=$(echo "$CONTENT" | sed 's/"/\\"/g')
+    mcp_call "smart_ingest" "{\"content\":\"$CONTENT\"}"
+    ;;
+  ingest|i)
+    CONTENT="$*"
+    CONTENT=$(echo "$CONTENT" | sed 's/"/\\"/g')
+    mcp_call "ingest" "{\"content\":\"$CONTENT\"}"
+    ;;
+  promote)
+    ID="$1"
+    mcp_call "promote_memory" "{\"memory_id\":\"$ID\"}"
+    ;;
+  demote)
+    ID="$1"
+    mcp_call "demote_memory" "{\"memory_id\":\"$ID\"}"
+    ;;
+  intention|remind)
+    CONTENT="$*"
+    CONTENT=$(echo "$CONTENT" | sed 's/"/\\"/g')
+    mcp_call "intention" "{\"content\":\"$CONTENT\",\"trigger_type\":\"time\"}"
+    ;;
+  stats)
+    $VESTIGE stats
+    ;;
+  health)
+    $VESTIGE health
+    ;;
+  consolidate)
+    $VESTIGE consolidate
+    ;;
+  *)
+    echo "Vestige Memory Helper"
+    echo ""
+    echo "Usage: vmem <command> [args]"
+    echo ""
+    echo "Commands:"
+    echo "  search <query>     Search memories semantically"
+    echo "  save <content>     Smart ingest (detects duplicates)"
+    echo "  ingest <content>   Simple ingest"
+    echo "  intention <text>   Create reminder/intention"
+    echo "  promote <id>       Strengthen a memory"
+    echo "  demote <id>        Weaken a memory"
+    echo "  stats              Show memory statistics"
+    echo "  health             Run health check"
+    echo "  consolidate        Run memory maintenance"
+    echo ""
+    echo "Examples:"
+    echo "  vmem save \"User prefers dark mode\""
+    echo "  vmem search \"user preferences\""
+    ;;
+esac
