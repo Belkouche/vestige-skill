@@ -2,12 +2,16 @@
 
 OpenClaw/Clawdbot skill wrapper for [Vestige](https://github.com/samvallad33/vestige) — a cognitive memory system based on 130 years of memory research.
 
+This skill is part of a **3-layer memory architecture** for AI agents: Vestige (cognitive memory) + QMD (hybrid file search) + a Learning Loop that prevents repeated mistakes.
+
 ## Features
 
 - **FSRS-6 spaced repetition** — memories fade naturally like human memory
 - **Semantic search** — find memories by meaning, not just keywords
 - **Smart ingestion** — automatic duplicate detection and merging
 - **100% local** — all data stays on your machine
+
+---
 
 ## Installation
 
@@ -41,6 +45,8 @@ cp ~/.openclaw/skills/vestige/vmem ~/bin/
 chmod +x ~/bin/vmem
 ```
 
+---
+
 ## Usage
 
 ### CLI Helper (vmem)
@@ -57,6 +63,76 @@ vmem stats
 
 # Health check
 vmem health
+```
+
+---
+
+## The 3-Layer Memory Architecture
+
+### Layer 1 — Vestige (Cognitive Memory)
+
+FSRS-6 spaced repetition with semantic embeddings. Memories fade if unused, strengthen when recalled. Use for preferences, bug fixes, decisions.
+
+```bash
+vmem save "User prefers TypeScript over JavaScript"
+vmem search "code preferences"
+vmem stats
+# → 46 memories, 100% retention
+```
+
+### Layer 2 — QMD (Hybrid Markdown Search)
+
+QMD is built into OpenClaw and provides hybrid BM25 + vector search with reranking across all your Markdown files — `MEMORY.md`, daily logs, `CORRECTIONS.md`.
+
+It auto-indexes every 5 minutes. Finds "publication problem" even if you logged "linkedin validation error" 3 weeks ago.
+
+```bash
+# Via OpenClaw tools
+memory_search "linkedin validation"
+memory_get "CORRECTIONS.md" --from 1 --lines 50
+```
+
+**Why it complements Vestige:**
+- Vestige = semantic recall for structured facts
+- QMD = full-text search across human-readable logs and notes
+
+### Layer 3 — The Learning Loop
+
+A structured workflow that prevents the agent from making the same mistake twice.
+
+**When the agent is corrected:**
+
+**Step 1 — Log to CORRECTIONS.md**
+```markdown
+## 2026-02-05 - LinkedIn: Published without approval
+
+**Domain:** LinkedIn / External communication
+**Error:** Posted without explicit validation
+**Correct:** NEVER post without explicit approval from user
+**Cause:** Interpreted "scheduled" as automatic authorization
+**Vestige:** ✅ Saved
+```
+
+**Step 2 — Save to Vestige**
+```bash
+vmem save "ERROR linkedin: NEVER publish without explicit approval → CORRECT: Always ask first"
+```
+
+**Step 3 — Update MEMORY.md** (if it's a standing rule)
+```markdown
+## LinkedIn
+- ⚠️ CRITICAL RULE: NEVER post without EXPLICIT validation
+```
+
+**Before any sensitive action — pre-flight check:**
+```bash
+# Semantic recall
+vmem search "error linkedin"
+vmem search "validation"
+
+# Hybrid file search
+memory_search "linkedin publication"
+memory_search "error [domain]"
 ```
 
 ---
